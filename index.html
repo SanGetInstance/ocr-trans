@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片OCR翻译工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #eee;
+        }
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fafafa;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .upload-area.has-image {
+            padding: 10px;
+        }
+        .upload-icon {
+            font-size: 48px;
+            color: #ccc;
+            margin-bottom: 16px;
+        }
+        .upload-text {
+            color: #666;
+            font-size: 16px;
+        }
+        .upload-hint {
+            color: #999;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        #originalImage, #resultImage {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+        }
+        .result-area {
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            border-radius: 12px;
+            color: #999;
+        }
+        .result-area.has-result {
+            background: white;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-download {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            margin-left: 10px;
+        }
+        .btn-download:hover {
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .status {
+            text-align: center;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        .status.processing {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        .hidden {
+            display: none;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .text-list {
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .text-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .text-item:last-child {
+            border-bottom: none;
+        }
+        .text-original {
+            color: #666;
+        }
+        .text-translated {
+            color: #667eea;
+            font-weight: 500;
+        }
+        .arrow {
+            color: #ccc;
+            margin: 0 8px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>图片OCR翻译工具</h1>
+        <p style="color: white; text-align: center; margin-bottom: 20px; opacity: 0.9;">
+            上传包含英文的图片，自动识别并翻译为中文，生成新图片
+        </p>
+        
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">原始图片</div>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">点击或拖拽图片到此处</div>
+                    <div class="upload-hint">支持 JPG、PNG、BMP 格式</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*">
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">翻译结果</div>
+                <div class="result-area" id="resultArea">
+                    <span>等待处理...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" id="processBtn" disabled>开始翻译</button>
+            <button class="btn btn-download hidden" id="downloadBtn">下载结果图片</button>
+        </div>
+        
+        <div id="statusArea" class="status info hidden"></div>
+        
+        <div class="panel hidden" id="textListPanel" style="margin-top: 20px;">
+            <div class="panel-title">识别的文字</div>
+            <div class="text-list" id="textList"></div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resultArea = document.getElementById('resultArea');
+        const statusArea = document.getElementById('statusArea');
+        const textListPanel = document.getElementById('textListPanel');
+        const textList = document.getElementById('textList');
+        
+        let originalImage = null;
+        let resultImageData = null;
+        
+        // 点击上传区域触发文件选择
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                handleFile(files[0]);
+            }
+        });
+        
+        // 文件选择事件
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // 处理选中的文件
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage = e.target.result;
+                uploadArea.innerHTML = `<img id="originalImage" src="${originalImage}" alt="原始图片">`;
+                uploadArea.classList.add('has-image');
+                processBtn.disabled = false;
+                downloadBtn.classList.add('hidden');
+                resultArea.innerHTML = '<span>等待处理...</span>';
+                resultArea.classList.remove('has-result');
+                textListPanel.classList.add('hidden');
+                hideStatus();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // 显示状态
+        function showStatus(message, type = 'info') {
+            statusArea.textContent = message;
+            statusArea.className = `status ${type}`;
+            statusArea.classList.remove('hidden');
+        }
+        
+        function hideStatus() {
+            statusArea.classList.add('hidden');
+        }
+        
+        // 开始处理
+        processBtn.addEventListener('click', async () => {
+            if (!originalImage) return;
+            
+            processBtn.disabled = true;
+            processBtn.innerHTML = '<span class="loading"></span>处理中...';
+            showStatus('正在进行OCR识别...', 'processing');
+            
+            try {
+                // 1. 调用OCR识别
+                const ocrResult = await callOCR(originalImage);
+                
+                if (!ocrResult.success) {
+                    throw new Error(ocrResult.error || 'OCR识别失败');
+                }
+                
+                const textBlocks = ocrResult.data;
+                
+                if (textBlocks.length === 0) {
+                    showStatus('未识别到文字', 'info');
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = '开始翻译';
+                    return;
+                }
+                
+                showStatus(`识别到 ${textBlocks.length} 个文本块，正在翻译...`, 'processing');
+                
+                // 2. 翻译文字
+                const translatedBlocks = await translateTexts(textBlocks);
+                
+                // 显示识别的文字列表
+                displayTextList(translatedBlocks);
+                
+                showStatus('正在生成图片...', 'processing');
+                
+                // 3. 生成新图片
+                resultImageData = await generateImage(originalImage, translatedBlocks);
+                
+                resultArea.innerHTML = `<img id="resultImage" src="${resultImageData}" alt="翻译结果">`;
+                resultArea.classList.add('has-result');
+                downloadBtn.classList.remove('hidden');
+                
+                showStatus('翻译完成！', 'success');
+                
+            } catch (error) {
+                console.error('处理失败:', error);
+                showStatus(`处理失败: ${error.message}`, 'error');
+            } finally {
+                processBtn.disabled = false;
+                processBtn.innerHTML = '开始翻译';
+            }
+        });
+        
+        // 调用OCR API
+        async function callOCR(imageData) {
+            try {
+                const response = await fetch('/api/ocr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData.split(',')[1] // 去掉 data:image/xxx;base64, 前缀
+                    })
+                });
+                return await response.json();
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // 翻译文字
+        async function translateTexts(textBlocks) {
+            const textsToTranslate = textBlocks.map(b => b.text);
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        texts: textsToTranslate,
+                        from: 'en',
+                        to: 'zh'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    return textBlocks.map((block, index) => ({
+                        ...block,
+                        translatedText: result.translations[index] || block.text
+                    }));
+                }
+            } catch (error) {
+                console.error('翻译失败:', error);
+            }
+            
+            // 如果翻译失败，返回原文
+            return textBlocks.map(block => ({
+                ...block,
+                translatedText: block.text
+            }));
+        }
+        
+        // 显示文字列表
+        function displayTextList(blocks) {
+            textListPanel.classList.remove('hidden');
+            textList.innerHTML = blocks.map(block => `
+                <div class="text-item">
+                    <span class="text-original">${escapeHtml(block.text)}</span>
+                    <span class="arrow">→</span>
+                    <span class="text-translated">${escapeHtml(block.translatedText)}</span>
+                </div>
+            `).join('');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 生成新图片
+        async function generateImage(originalImageData, blocks) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 绘制原图
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // 遍历每个文本块，用中文替换
+                    blocks.forEach(block => {
+                        if (block.polygon && block.polygon.length >= 4) {
+                            // 获取文本区域的边界
+                            const minX = Math.min(...block.polygon.map(p => p.X));
+                            const maxX = Math.max(...block.polygon.map(p => p.X));
+                            const minY = Math.min(...block.polygon.map(p => p.Y));
+                            const maxY = Math.max(...block.polygon.map(p => p.Y));
+                            
+                            const width = maxX - minX;
+                            const height = maxY - minY;
+                            
+                            // 用背景色覆盖原文字区域
+                            // 取区域周围的颜色作为背景色
+                            const bgColor = getBackgroundColor(ctx, minX, minY, width, height);
+                            ctx.fillStyle = bgColor;
+                            ctx.fillRect(minX - 2, minY - 2, width + 4, height + 4);
+                            
+                            // 绘制翻译后的文字
+                            const fontSize = Math.max(12, Math.min(height * 0.8, 48));
+                            ctx.font = `${fontSize}px "Microsoft YaHei", "PingFang SC", sans-serif`;
+                            ctx.fillStyle = getTextColor(bgColor);
+                            ctx.textBaseline = 'middle';
+                            
+                            // 计算文字位置使其居中
+                            const textMetrics = ctx.measureText(block.translatedText);
+                            const textX = minX + (width - textMetrics.width) / 2;
+                            const textY = minY + height / 2;
+                            
+                            ctx.fillText(block.translatedText, textX, textY);
+                        }
+                    });
+                    
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.src = originalImageData;
+            });
+        }
+        
+        // 获取区域的背景色（取边缘像素的平均色）
+        function getBackgroundColor(ctx, x, y, width, height) {
+            try {
+                // 取左边缘的像素
+                const imageData = ctx.getImageData(Math.max(0, x - 5), y, 3, Math.max(1, height));
+                const data = imageData.data;
+                
+                let r = 0, g = 0, b = 0, count = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                    count++;
+                }
+                
+                if (count > 0) {
+                    r = Math.round(r / count);
+                    g = Math.round(g / count);
+                    b = Math.round(b / count);
+                    return `rgb(${r}, ${g}, ${b})`;
+                }
+            } catch (e) {
+                console.error('获取背景色失败:', e);
+            }
+            return 'rgb(255, 255, 255)';
+        }
+        
+        // 根据背景色计算文字颜色
+        function getTextColor(bgColor) {
+            const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (match) {
+                const [, r, g, b] = match.map(Number);
+                // 计算亮度
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                return brightness > 128 ? '#000000' : '#ffffff';
+            }
+            return '#000000';
+        }
+        
+        // 下载结果图片
+        downloadBtn.addEventListener('click', () => {
+            if (!resultImageData) return;
+            
+            const link = document.createElement('a');
+            link.download = 'translated_image.png';
+            link.href = resultImageData;
+            link.click();
+        });
+    </script>
+</body>
+</html>
